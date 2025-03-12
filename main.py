@@ -4,20 +4,32 @@ from db.db_manager import DBManager
 import logging
 from utils import config
 
+# Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 if __name__ == '__main__':
+    """
+    Основная точка входа в программу. 
+    Создает подключение к базе данных, получает данные о компаниях и их вакансиях,
+    и сохраняет эти данные в базе данных.
+    """
+    # Инициализация менеджера базы данных
     db_manager = DBManager(config.DB_NAME, config.DB_USER, config.DB_PASSWORD, config.DB_HOST, config.DB_PORT)
+
+    # Подключение к базе данных
+
     if not db_manager.connect():
         logging.error("Не удалось подключиться к базе данных.")
         exit()
-
+    # Инициализация API HeadHunter
     hh_api = HeadHunterAPI()
 
+    # Получение списка названий компаний из конфигурации
     company_names = config.COMPANY_NAMES
     companies_data = []
     vacancies_data = []
 
+    # Обработка каждой компании
     for company_name in company_names:
         try:
             employers = hh_api.get_employers(company_name)
@@ -25,9 +37,10 @@ if __name__ == '__main__':
                 employer = employers[0]
                 employer_data = hh_api.get_employer_by_id(employer['id'])
                 if employer_data:
-                    logging.info(f"Получены полные данные о работодателе: {employer_data['name']} (ID: {employer_data['id']})")
+                    logging.info(
+                        f"Получены полные данные о работодателе: {employer_data['name']} (ID: {employer_data['id']})")
 
-
+                    # Сохранение данных о компании
                     company = {
                         'id': employer['id'],
                         'name': employer_data['name'],
@@ -40,24 +53,32 @@ if __name__ == '__main__':
                     page = 0
                     max_pages = 5
 
+                    # Получение вакансий для компании
                     while page < max_pages:
                         try:
                             vacancies = hh_api.get_vacancies(employer['id'], page)
 
                             if not vacancies:
-                                logging.info(f"API вернул пустой список вакансий для {company_name} на странице {page}.")
+                                logging.info(
+                                    f"API вернул пустой список вакансий для {company_name} на странице {page}.")
                                 break
 
                             for vacancy in vacancies:
-                                logging.info(f"Обрабатываем вакансию: {vacancy['name']} (ID работодателя: {vacancy['employer']['id']})")
+                                logging.info(
+                                    f"Обрабатываем вакансию: {vacancy['name']} "
+                                    f"(ID работодателя: {vacancy['employer']['id']})")
                                 vacancies_data.append(vacancy)
 
                             page += 1
                         except Exception as e:
-                            logging.error(f"Ошибка при получении вакансий (страница {page}) для компании {company_name} (ID {employer['id']}): {e}")
+                            logging.error(
+                                f"Ошибка при получении вакансий (страница {page}) для компании {company_name} "
+                                f"(ID {employer['id']}): {e}")
                             break
                 else:
-                    logging.warning(f"Не удалось получить полные данные о работодателе для компании {company_name} (ID {employer['id']})")
+                    logging.warning(
+                        f"Не удалось получить полные данные о работодателе для компании {company_name} "
+                        f"(ID {employer['id']})")
             else:
                 logging.warning(f"Не удалось найти работодателя для компании {company_name}")
         except Exception as e:
@@ -66,6 +87,7 @@ if __name__ == '__main__':
         vacancies_count = len(vacancies_data)
         logging.info(f"Получено {vacancies_count} вакансий для компании {company_name}")
 
+    # Создание таблиц в базе данных
     db_manager.create_tables()
 
     try:
@@ -74,9 +96,11 @@ if __name__ == '__main__':
     except Exception as e:
         logging.error(f"Ошибка при сохранении данных в базу данных: {e}")
 
+    # Вывод количества вакансий для каждой компании
     print("\n--- Компании и количество вакансий ---")
     companies_vacancies_count = db_manager.get_companies_and_vacancies_count()
     for company, count in companies_vacancies_count:
         print(f"{company}: {count} вакансий")
 
+    # Отключение от базы данных
     db_manager.disconnect()

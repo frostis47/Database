@@ -1,9 +1,21 @@
 import psycopg2
 
+
 class DBManager:
-
-
+    """
+    Класс для управления подключением к базе данных PostgreSQL и выполнения операций с таблицами.
+    """
     def __init__(self, dbname, user, password, host='localhost', port='5432'):
+        """
+        Инициализирует объект DBManager.
+
+        Args:
+            dbname (str): Имя базы данных.
+            user (str): Имя пользователя для подключения к базе данных.
+            password (str): Пароль для подключения к базе данных.
+            host (str): Хост базы данных (по умолчанию 'localhost').
+            port (str): Порт базы данных (по умолчанию '5432').
+        """
         self.dbname = dbname
         self.user = user
         self.password = password
@@ -12,7 +24,12 @@ class DBManager:
         self.conn = None
 
     def connect(self):
+        """
+        Устанавливает соединение с базой данных.
 
+        Returns:
+            bool: True, если соединение успешно установлено, иначе False.
+        """
         try:
             self.conn = psycopg2.connect(dbname=self.dbname, user=self.user,
                                          password=self.password, host=self.host, port=self.port)
@@ -23,7 +40,9 @@ class DBManager:
             return False
 
     def disconnect(self):
-
+        """
+        Закрывает соединение с базой данных.
+        """
         if self.conn:
             try:
                 self.conn.close()
@@ -33,7 +52,9 @@ class DBManager:
                 print(f"Ошибка при отключении от базы данных: {e}")
 
     def create_tables(self):
-
+        """
+        Создает таблицы 'companies' и 'vacancies' в базе данных.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных перед созданием таблиц.")
             return
@@ -92,8 +113,9 @@ class DBManager:
                         VALUES (%s, %s, %s, %s, %s)
                         ON CONFLICT (company_id) DO NOTHING
                     """, (
-                    company['id'], company['name'], company.get('description', ''), company.get('employees_count', 0),
-                    company.get('company_url', '')))
+                        company['id'], company['name'], company.get('description', ''),
+                        company.get('employees_count', 0),
+                        company.get('company_url', '')))
 
                 # Сохраняем вакансии
                 for vacancy in vacancies:
@@ -111,7 +133,12 @@ class DBManager:
             print(f"Ошибка при сохранении данных в базу данных: {e}")
 
     def get_companies_and_vacancies_count(self):
+        """
+        Получает количество вакансий для каждой компании.
 
+        Returns:
+            list: Список кортежей, содержащих имя компании и количество вакансий.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных.")
             return []
@@ -131,7 +158,12 @@ class DBManager:
             return []
 
     def get_all_vacancies(self):
+        """
+        Получает все вакансии из базы данных.
 
+        Returns:
+            list: Список кортежей, содержащих информацию о вакансиях и компаниях.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных.")
             return []
@@ -149,7 +181,12 @@ class DBManager:
             return []
 
     def get_avg_salary(self):
+        """
+        Получает среднюю зарплату по всем вакансиям.
 
+        Returns:
+            float: Средняя зарплата, или 0, если данных нет.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных.")
             return None
@@ -168,7 +205,12 @@ class DBManager:
             return None
 
     def get_vacancies_with_higher_salary(self):
+        """
+        Получает вакансии с зарплатой выше средней.
 
+        Returns:
+            list: Список кортежей, содержащих информацию о вакансиях с высокой зарплатой.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных.")
             return []
@@ -178,7 +220,8 @@ class DBManager:
                 cur.execute("""
                     SELECT vacancy_name, salary_from, salary_to, vacancy_url
                     FROM vacancies
-                    WHERE (salary_from + salary_to) / 2 > (SELECT AVG((salary_from + salary_to) / 2) FROM vacancies WHERE salary_from IS NOT NULL AND salary_to IS NOT NULL)
+                    WHERE (salary_from + salary_to) / 2 > (SELECT AVG((salary_from + salary_to) / 2) 
+                    FROM vacancies WHERE salary_from IS NOT NULL AND salary_to IS NOT NULL)
                     AND salary_from IS NOT NULL AND salary_to IS NOT NULL
                 """)
                 return cur.fetchall()
@@ -187,7 +230,15 @@ class DBManager:
             return []
 
     def get_vacancies_with_keyword(self, keyword):
+        """
+        Получает вакансии, содержащие заданное ключевое слово в названии.
 
+        Args:
+            keyword (str): Ключевое слово для поиска в названиях вакансий.
+
+        Returns:
+            list: Список кортежей, содержащих информацию о вакансиях, соответствующих ключевому слову.
+        """
         if not self.conn:
             print("Необходимо подключиться к базе данных.")
             return []
